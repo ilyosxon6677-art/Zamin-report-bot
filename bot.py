@@ -2,11 +2,11 @@ import os
 import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
+import urllib.request
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from playwright.async_api import async_playwright
 
 # --- RENDER UCHUN DUMMY SERVER ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -32,34 +32,34 @@ PAGES = [
     {
         "chat_id": CHAT_ID_48,
         "sheet_name": "Stanoklar bo'yicha",
-        "range": "A1:Z35",
         "caption": "📊 Kunlik Stanoklar hisoboti"
     },
     {
         "chat_id": CHAT_ID_34,
         "sheet_name": "Kunlik krim 34",
-        "range": "A1:H35",
         "caption": "📊 Kunlik Krim (34) hisoboti"
     }
 ]
 
 dp = Dispatcher()
 
-async def capture_screenshot(url):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(viewport={"width": 1200, "height": 800})
-        await page.goto(url)
-        await page.wait_for_timeout(3000)  # Jadval yuklanishi uchun 3 soniya kutadi
-        screenshot = await page.screenshot(type="png")
-        await browser.close()
-        return screenshot
+def fetch_sheet_image(sheet_name):
+    # Google Sheets export URL (PNG farmatda)
+    encoded_name = urllib.parse.quote(sheet_name)
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=png&sheet={encoded_name}"
+    
+    req = urllib.request.Request(
+        url, 
+        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    )
+    with urllib.request.urlopen(req) as response:
+        return response.read()
 
 async def capture_and_send():
     bot = Bot(token=BOT_TOKEN)
     for item in PAGES:
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/htmlembed?sheet={item['sheet_name']}&range={item['range']}"
-        image_bytes = await capture_screenshot(url)
+        # Google Sheets rasmini olish
+        image_bytes = await asyncio.to_thread(fetch_sheet_image, item['sheet_name'])
         
         photo = BufferedInputFile(image_bytes, filename="report.png")
         await bot.send_photo(chat_id=item["chat_id"], photo=photo, caption=item["caption"])

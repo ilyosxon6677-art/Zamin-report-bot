@@ -3,6 +3,7 @@ import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 import urllib.request
+import urllib.parse
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message
@@ -23,7 +24,7 @@ def run_dummy_server():
 # --- BOT SOZLAMALARI ---
 BOT_TOKEN = "8704184895:AAEKbSKQcAgMNtOML1ecWHVjfd4ecBsIY3o"
 
-# Xabar yuborilishi kerak bo'lgan guruhlar
+# Xabar boradigan guruhlar
 TARGET_CHATS = [
     -1002717046752,  # 48 tali Tokuv
     -1004397692925   # 34 tali guruh
@@ -31,37 +32,19 @@ TARGET_CHATS = [
 
 SHEET_ID = "1lxkukZc2Th38J-Wq6-Fd38fK-ndksBD7TaidajfzVw4"
 
-# FAQAT SIZ SO'RAGAN 3 TA VARAQ RO'YXATI (Krim 48 va Krim 34 olib tashlandi)
-# Google Sheets varaqlari indekslari:
-# 0 = Kunlik krim 48 (Tashlanmaydi)
-# 1 = Kunlik krim 34 (Tashlanmaydi)
-# 2 = Stanoklar bo'yicha (Tashlanadi)
-# 3 = Metr Jamlanma va Oylik (Tashlanadi)
-# 4 = Kunlik Tabel (Tashlanadi)
-
+# FAQAT SIZ SO'RAGAN 3 TA VARAQ
 TARGET_SHEETS = [
-    {
-        "name": "Stanoklar bo'yicha", 
-        "index": 2,
-        "caption": "📊 Stanoklar bo'yicha hisobot"
-    },
-    {
-        "name": "Metr Jamlanma va Oylik", 
-        "index": 3,
-        "caption": "📊 Metr Jamlanma va Oylik hisoboti"
-    },
-    {
-        "name": "Kunlik Tabel", 
-        "index": 4,
-        "caption": "📊 Kunlik Tabel hisoboti"
-    }
+    {"name": "Stanoklar bo'yicha", "caption": "📊 Stanoklar bo'yicha hisobot"},
+    {"name": "Metr Jamlanma va Oylik", "caption": "📊 Metr Jamlanma va Oylik hisoboti"},
+    {"name": "Kunlik Tabel", "caption": "📊 Kunlik Tabel hisoboti"}
 ]
 
 dp = Dispatcher()
 
-def fetch_sheet_pdf_by_index(sheet_index):
-    # Google Sheets'dan alohida har bir varaqni indeksi bo'yicha PDF shaklida olish
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=pdf&portrait=false&size=A4&fitw=true&gridlines=true&sheetindex={sheet_index}"
+def fetch_specific_sheet_pdf(sheet_name):
+    encoded_name = urllib.parse.quote(sheet_name)
+    # Aynan varaq nomi bilan PDF shaklida yuklab olish
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=pdf&sheet={encoded_name}&encoded_sheet_name={encoded_name}"
     
     req = urllib.request.Request(
         url, 
@@ -75,8 +58,7 @@ async def capture_and_send():
     
     for sheet in TARGET_SHEETS:
         try:
-            # Har bir varaqni alohida yuklash
-            pdf_bytes = await asyncio.to_thread(fetch_sheet_pdf_by_index, sheet['index'])
+            pdf_bytes = await asyncio.to_thread(fetch_specific_sheet_pdf, sheet['name'])
             
             for chat_id in TARGET_CHATS:
                 doc = BufferedInputFile(pdf_bytes, filename=f"{sheet['name']}.pdf")
@@ -96,7 +78,7 @@ async def cmd_send(message: Message):
     await message.answer("Hisobotlar tayyorlanmoqda va guruhlarga yuborilmoqda...")
     try:
         await capture_and_send()
-        await message.answer("Faqat so'ralgan 3 ta hisobot muvaffaqiyatli yuborildi!")
+        await message.answer("Faqat tanlangan 3 ta hisobot yuborildi!")
     except Exception as e:
         await message.answer(f"Xatolik yuz berdi: {e}")
 

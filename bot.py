@@ -23,7 +23,7 @@ def run_dummy_server():
 # --- BOT SOZLAMALARI ---
 BOT_TOKEN = "8704184895:AAEKbSKQcAgMNtOML1ecWHVjfd4ecBsIY3o"
 
-# Xabar borishi kerak bo'lgan guruhlar
+# Xabar yuborilishi kerak bo'lgan guruhlar
 TARGET_CHATS = [
     -1002717046752,  # 48 tali Tokuv
     -1004397692925   # 34 tali guruh
@@ -31,19 +31,37 @@ TARGET_CHATS = [
 
 SHEET_ID = "1lxkukZc2Th38J-Wq6-Fd38fK-ndksBD7TaidajfzVw4"
 
-# Faqat siz ko'rsatgan 3 ta varaq
+# FAQAT SIZ SO'RAGAN 3 TA VARAQ RO'YXATI (Krim 48 va Krim 34 olib tashlandi)
+# Google Sheets varaqlari indekslari:
+# 0 = Kunlik krim 48 (Tashlanmaydi)
+# 1 = Kunlik krim 34 (Tashlanmaydi)
+# 2 = Stanoklar bo'yicha (Tashlanadi)
+# 3 = Metr Jamlanma va Oylik (Tashlanadi)
+# 4 = Kunlik Tabel (Tashlanadi)
+
 TARGET_SHEETS = [
-    {"name": "Stanoklar bo'yicha", "caption": "📊 Stanoklar bo'yicha hisobot"},
-    {"name": "Metr Jamlanma va Oylik", "caption": "📊 Metr Jamlanma va Oylik hisoboti"},
-    {"name": "Kunlik Tabel", "caption": "📊 Kunlik Tabel hisoboti"}
+    {
+        "name": "Stanoklar bo'yicha", 
+        "index": 2,
+        "caption": "📊 Stanoklar bo'yicha hisobot"
+    },
+    {
+        "name": "Metr Jamlanma va Oylik", 
+        "index": 3,
+        "caption": "📊 Metr Jamlanma va Oylik hisoboti"
+    },
+    {
+        "name": "Kunlik Tabel", 
+        "index": 4,
+        "caption": "📊 Kunlik Tabel hisoboti"
+    }
 ]
 
 dp = Dispatcher()
 
-def fetch_sheet_as_png(sheet_name):
-    encoded_name = urllib.parse.quote(sheet_name)
-    # Google Sheets har bir varaqni rasmli PDF qilib beradi, biz raster formatini eksport qilamiz
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=pdf&portrait=false&size=A4&fitw=true&gridlines=true&sheet={encoded_name}"
+def fetch_sheet_pdf_by_index(sheet_index):
+    # Google Sheets'dan alohida har bir varaqni indeksi bo'yicha PDF shaklida olish
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=pdf&portrait=false&size=A4&fitw=true&gridlines=true&sheetindex={sheet_index}"
     
     req = urllib.request.Request(
         url, 
@@ -57,12 +75,11 @@ async def capture_and_send():
     
     for sheet in TARGET_SHEETS:
         try:
-            # Faylni olish
-            file_bytes = await asyncio.to_thread(fetch_sheet_as_png, sheet['name'])
+            # Har bir varaqni alohida yuklash
+            pdf_bytes = await asyncio.to_thread(fetch_sheet_pdf_by_index, sheet['index'])
             
-            # Guruhlarga rasm o'rnida fayl o'rnida yuborish
             for chat_id in TARGET_CHATS:
-                doc = BufferedInputFile(file_bytes, filename=f"{sheet['name']}.pdf")
+                doc = BufferedInputFile(pdf_bytes, filename=f"{sheet['name']}.pdf")
                 await bot.send_document(chat_id=chat_id, document=doc, caption=sheet['caption'])
                 await asyncio.sleep(1)
         except Exception as e:
@@ -79,7 +96,7 @@ async def cmd_send(message: Message):
     await message.answer("Hisobotlar tayyorlanmoqda va guruhlarga yuborilmoqda...")
     try:
         await capture_and_send()
-        await message.answer("Barcha 3 ta hisobot muvaffaqiyatli yuborildi!")
+        await message.answer("Faqat so'ralgan 3 ta hisobot muvaffaqiyatli yuborildi!")
     except Exception as e:
         await message.answer(f"Xatolik yuz berdi: {e}")
 

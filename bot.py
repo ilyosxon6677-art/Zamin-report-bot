@@ -24,7 +24,7 @@ def run_dummy_server():
     server.serve_forever()
 
 # --- BOT SOZLAMALARI ---
-BOT_TOKEN = "SIZNING_BOT_TOKENINGIZ"  # O'zingizning bot tokeningizni yozing
+BOT_TOKEN = "8704184895:AAGdXAOBNHi2hjokNu45E7ZOGxnO7A0Nap8"  # O'zingizning bot tokeningizni yozing
 
 CHAT_ID_48 = -1002717046752
 CHAT_ID_34 = -1004397692925

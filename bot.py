@@ -1,4 +1,7 @@
+import os
 import asyncio
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
 from aiogram import Bot
 from aiogram.types import BufferedInputFile
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -7,12 +10,23 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- SOZLAMALAR ---
-BOT_TOKEN = "SIZNING_BOT_TOKENINGIZ"
+# --- RENDER UCHUN DUMMY SERVER (Port xatoligini yo'qotadi) ---
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot ishlayapti!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# --- BOT SOZLAMALARI ---
+BOT_TOKEN = "SIZNING_BOT_TOKENINGIZ"  # O'zingizning bot tokeningizni yozing
 
 CHAT_ID_48 = -1002717046752
 CHAT_ID_34 = -1004397692925
-# CHAT_ID_ZAMIN = -100XXXXXXXXXX
 
 SHEET_ID = "1xBro7Q_Bn-FnABrvTQQooL_2fSoxobMi"
 
@@ -59,8 +73,11 @@ scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
 scheduler.add_job(capture_and_send, 'cron', hour=21, minute=0)
 
 async def main():
+    # Render uchun HTTP serverni orqa fonda yurgizish
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+    
     scheduler.start()
-    print("Bot tayyor va 21:00 ni kutmoqda...")
+    print("Bot va HTTP Server tayyor. 21:00 ni kutmoqda...")
     while True:
         await asyncio.sleep(3600)
 

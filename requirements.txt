@@ -1,3 +1,6 @@
 aiogram
 apscheduler
-pdf2image
+gspread
+gspread-dataframe
+pandas
+dataframe_image

@@ -26,7 +26,8 @@ BOT_TOKEN = "8704184895:AAEKbSKQcAgMNtOML1ecWHVjfd4ecBsIY3o"
 CHAT_ID_48 = -1002717046752
 CHAT_ID_34 = -1004397692925
 
-SHEET_ID = "1xBro7Q_Bn-FnABrvTQQooL_2fSoxobMi"
+# YANGI GOOGLE SHEETS ID
+SHEET_ID = "1lxkukZc2Th38J-Wq6-Fd38fK-ndksBD7TaidajfzVw4"
 
 PAGES = [
     {
@@ -43,10 +44,9 @@ PAGES = [
 
 dp = Dispatcher()
 
-def fetch_sheet_image(sheet_name):
-    # Google Sheets export URL (PNG farmatda)
+def fetch_sheet_pdf(sheet_name):
     encoded_name = urllib.parse.quote(sheet_name)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=png&sheet={encoded_name}"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=pdf&portrait=false&size=A4&fitw=true&gridlines=true&sheet={encoded_name}"
     
     req = urllib.request.Request(
         url, 
@@ -58,11 +58,10 @@ def fetch_sheet_image(sheet_name):
 async def capture_and_send():
     bot = Bot(token=BOT_TOKEN)
     for item in PAGES:
-        # Google Sheets rasmini olish
-        image_bytes = await asyncio.to_thread(fetch_sheet_image, item['sheet_name'])
+        pdf_bytes = await asyncio.to_thread(fetch_sheet_pdf, item['sheet_name'])
         
-        photo = BufferedInputFile(image_bytes, filename="report.png")
-        await bot.send_photo(chat_id=item["chat_id"], photo=photo, caption=item["caption"])
+        document = BufferedInputFile(pdf_bytes, filename=f"{item['sheet_name']}.pdf")
+        await bot.send_document(chat_id=item["chat_id"], document=document, caption=item["caption"])
         
     await bot.session.close()
 

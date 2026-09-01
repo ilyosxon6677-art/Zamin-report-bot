@@ -2,11 +2,11 @@ import os
 import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
-import urllib.request
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from playwright.async_api import async_playwright
 
 # --- RENDER UCHUN DUMMY SERVER ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -23,7 +23,7 @@ def run_dummy_server():
 # --- BOT SOZLAMALARI ---
 BOT_TOKEN = "8704184895:AAEKbSKQcAgMNtOML1ecWHVjfd4ecBsIY3o"
 
-# Xabar borishi kerak bo'lgan guruhlar ro'yxati
+# Xabar borishi kerak bo'lgan guruhlar
 TARGET_CHATS = [
     -1002717046752,  # 48 tali Tokuv
     -1004397692925   # 34 tali guruh
@@ -31,7 +31,7 @@ TARGET_CHATS = [
 
 SHEET_ID = "1lxkukZc2Th38J-Wq6-Fd38fK-ndksBD7TaidajfzVw4"
 
-# Faqat siz ko'rsatgan 3 ta varaq
+# Faqat siz so'ragan 3 ta varaq
 TARGET_SHEETS = [
     {"name": "Stanoklar bo'yicha", "caption": "📊 Stanoklar bo'yicha hisobot"},
     {"name": "Metr Jamlanma va Oylik", "caption": "📊 Metr Jamlanma va Oylik hisoboti"},
@@ -40,27 +40,40 @@ TARGET_SHEETS = [
 
 dp = Dispatcher()
 
-def fetch_sheet_image(sheet_name):
-    encoded_name = urllib.parse.quote(sheet_name)
-    # Google Sheets varag'ini to'g'ridan-to'g'ri PNG rasm qilib yuklash
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=png&sheet={encoded_name}"
+async def take_sheet_screenshot(sheet_name):
+    encoded_name = sheet_name.replace(" ", "%20")
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/htmlview#gid=0"
     
-    req = urllib.request.Request(
-        url, 
-        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-    )
-    with urllib.request.urlopen(req) as response:
-        return response.read()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(viewport={'width': 1600, 'height': 1000})
+        page = await context.new_page()
+        
+        # Google Sheets ni brauzerda ochish
+        await page.goto(url, wait_until="networkidle")
+        await page.wait_for_timeout(3000)
+        
+        # Kerakli varaq tabini topish va bosish
+        try:
+            tab_element = page.locator(f"text='{sheet_name}'").first
+            if await tab_element.is_visible():
+                await tab_element.click()
+                await page.wait_for_timeout(2000)
+        except Exception as e:
+            print(f"Varaqni bosishda ogohlantirish: {e}")
+
+        # Sahifani rasmga olish (Skrinshot)
+        screenshot_bytes = await page.screenshot(full_page=False)
+        await browser.close()
+        return screenshot_bytes
 
 async def capture_and_send():
     bot = Bot(token=BOT_TOKEN)
     
     for sheet in TARGET_SHEETS:
         try:
-            # Varaqni rasm holatida olish
-            image_bytes = await asyncio.to_thread(fetch_sheet_image, sheet['name'])
+            image_bytes = await take_sheet_screenshot(sheet['name'])
             
-            # Har bir guruhga rasm sifatida yuborish
             for chat_id in TARGET_CHATS:
                 photo = BufferedInputFile(image_bytes, filename=f"{sheet['name']}.png")
                 await bot.send_photo(chat_id=chat_id, photo=photo, caption=sheet['caption'])
@@ -76,10 +89,10 @@ async def cmd_start(message: Message):
 
 @dp.message(Command("send"))
 async def cmd_send(message: Message):
-    await message.answer("Hisobotlar tayyorlanmoqda va guruhlarga yuborilmoqda...")
+    await message.answer("Hisobotlar rasmi olinmoqda va guruhlarga yuborilmoqda...")
     try:
         await capture_and_send()
-        await message.answer("Barcha 3 ta hisobot rasmlari guruhlarga yuborildi!")
+        await message.answer("Barcha 3 ta hisobot rasmlari muvaffaqiyatli yuborildi!")
     except Exception as e:
         await message.answer(f"Xatolik yuz berdi: {e}")
 

@@ -1,0 +1,6 @@
+services:
+  - type: worker
+    name: zamin-report-bot
+    env: python
+    buildCommand: pip install -r requirements.txt && playwright install chromium && playwright install-deps
+    startCommand: python bot.py

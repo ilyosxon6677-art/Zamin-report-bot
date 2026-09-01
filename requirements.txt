@@ -1,4 +1,3 @@
 aiogram
 apscheduler
-selenium
-webdriver-manager
+playwright

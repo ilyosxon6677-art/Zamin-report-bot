@@ -2,15 +2,16 @@ import os
 import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
-from aiogram import Bot
-from aiogram.types import BufferedInputFile
+from aiogram import Bot, Dispatcher
+from aiogram.filters import Command
+from aiogram.types import BufferedInputFile, Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- RENDER UCHUN DUMMY SERVER (Port xatoligini yo'qotadi) ---
+# --- RENDER UCHUN DUMMY SERVER ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -45,6 +46,8 @@ PAGES = [
     }
 ]
 
+dp = Dispatcher()
+
 def capture_screenshot(url):
     options = Options()
     options.add_argument('--headless')
@@ -69,17 +72,24 @@ async def capture_and_send():
         
     await bot.session.close()
 
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    await message.answer("Salom! Bot ishlayapti. Hisobotlarni zudlik bilan yuborish uchun /send buyrug'ini yuboring.")
+
+@dp.message(Command("send"))
+async def cmd_send(message: Message):
+    await message.answer("Hisobotlar tayyorlanmoqda va guruhlarga yuborilmoqda...")
+    await capture_and_send()
+    await message.answer("Hisobotlar muvaffaqiyatli yuborildi!")
+
 scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
 scheduler.add_job(capture_and_send, 'cron', hour=21, minute=0)
 
 async def main():
-    # Render uchun HTTP serverni orqa fonda yurgizish
     threading.Thread(target=run_dummy_server, daemon=True).start()
-    
     scheduler.start()
-    print("Bot va HTTP Server tayyor. 21:00 ni kutmoqda...")
-    while True:
-        await asyncio.sleep(3600)
+    bot = Bot(token=BOT_TOKEN)
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
     asyncio.run(main())
